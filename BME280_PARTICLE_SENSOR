@@ -1,0 +1,111 @@
+#include <Wire.h>
+#include <BMx280I2C.h>
+#include "SparkFun_Particle_Sensor_SN-GCJA5_Arduino_Library.h" //Click here to get the library: http://librarymanager/All#SparkFun_Particle_SN-GCJA5
+
+
+//Definir el BME280
+#define I2C_ADDRESS 0x77 //dirección I2C
+//create a BMx280I2C object using the I2C interface with I2C Address 0x76
+BMx280I2C bmx280(I2C_ADDRESS);
+float t_BME,p_BME,h_BME;
+
+//Definir el Sensor de particulas
+#define I2C_ADDRESS2 0x33 //dirección I2C
+SFE_PARTICLE_SENSOR myAirSensor;
+float pm1_0, pm2_5, pm10;
+
+
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(115200);
+  Serial.println("Test de sensores");
+
+  //Se inicia el sensor BME280 y sensor de partículas
+  Wire.begin();
+
+  //begin() checks the Interface, reads the sensor ID (to differentiate between BMP280 and BME280)
+  //and reads compensation parameters.
+  if (!bmx280.begin())
+  {
+    Serial.println("begin() failed. check your BMx280 Interface and I2C Address.");
+    while (1);
+  }
+  
+   if (myAirSensor.begin() == false)
+  {
+    Serial.println("The particle sensor did not respond. Please check wiring. Freezing...");
+    while (1)
+      ;
+  }
+  
+
+  if (bmx280.isBME280()){
+    Serial.println("sensor BME280 and SN-GCJA5 are satarted"); 
+    Serial.println("PM:1.0, PM:2.5, PM:10, T_BME, H_BME,p_BME");
+  }
+  else{
+    Serial.println("sensor is a BMP280");
+  }
+  //reset sensor to default parameters.
+  bmx280.resetToDefaults();
+  //by default sensing is disabled and must be enabled by setting a non-zero
+  //oversampling setting.
+  //set an oversampling setting for pressure and temperature measurements. 
+  bmx280.writeOversamplingPressure(BMx280MI::OSRS_P_x16);
+  bmx280.writeOversamplingTemperature(BMx280MI::OSRS_T_x16);
+
+  //if sensor is a BME280, set an oversampling setting for humidity measurements.
+  if (bmx280.isBME280())
+    bmx280.writeOversamplingHumidity(BMx280MI::OSRS_H_x16);
+  delay(500);
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  delay(500);  
+  leerParticle();
+  leerBME();
+  Serial.print("PM1.0: ");
+  Serial.print(pm1_0, 2); //Print float with 2 decimals
+  Serial.print(" PM2.5: ");
+  Serial.print(pm2_5, 2);
+  Serial.print(" PM10: ");
+  Serial.print(pm10, 2);
+  Serial.print(" T_BME: ");
+  Serial.print(t_BME);
+  Serial.print(" H_BME: ");
+  Serial.print(h_BME);
+  Serial.print(" p_BME: ");
+  Serial.print(p_BME);
+  Serial.println(' ');
+}
+
+void leerParticle() {
+
+  pm1_0 = myAirSensor.getPM1_0();
+  pm2_5 = myAirSensor.getPM2_5();
+  pm10 = myAirSensor.getPM10();
+} 
+
+ void leerBME() {
+ 
+  if (!bmx280.measure())
+  {
+    Serial.println("could not start measurement, is a measurement already running?");
+    return;
+  }
+
+  //wait for the measurement to finish
+  do
+  {
+    delay(100);
+  } while (!bmx280.hasValue());
+
+  p_BME = bmx280.getPressure();
+  t_BME = bmx280.getTemperature();
+
+  if (bmx280.isBME280())
+  {
+    h_BME = bmx280.getHumidity();
+  }
+  }
